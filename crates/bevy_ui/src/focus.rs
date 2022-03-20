@@ -91,11 +91,10 @@ fn focus_ui<Cursor: CursorResource>(
     touches_input: Res<Touches>,
     mut node_query: Query<NodeQuery>,
 ) {
+    set_all_interactions_to_none(&mut node_query);
+
     let cursor_position = match windows.get_cursor_position() {
-        None => {
-            set_all_interactions_to_none(node_query);
-            return;
-        }
+        None => return,
         Some(cursor_position) => cursor_position,
     };
 
@@ -118,8 +117,9 @@ fn focus_ui<Cursor: CursorResource>(
         }
     }
 
-    let mouse_clicked =
-        mouse_button_input.just_pressed(MouseButton::Left) || touches_input.just_released(0);
+    let mouse_clicked = mouse_button_input.just_pressed(MouseButton::Left)
+        || mouse_button_input.pressed(MouseButton::Left)
+        || touches_input.just_released(0);
 
     let mut moused_over_z_sorted_nodes = node_query
         .iter_mut()
@@ -185,7 +185,7 @@ fn focus_ui<Cursor: CursorResource>(
     }
 }
 
-fn set_all_interactions_to_none(mut node_query: Query<NodeQuery>) {
+fn set_all_interactions_to_none(node_query: &mut Query<NodeQuery>) {
     for (_entity, _node, _global_transform, mut interaction, _focus_policy, _clip) in
         node_query.iter_mut()
     {
@@ -254,7 +254,7 @@ mod tests {
     #[case::mouse_clicked(vec![(Some((10., 10.)), Interaction::Clicked)], false)]
     #[case::mouse_clicked_then_not_hovered(vec![
         (Some((10., 10.)), Interaction::Clicked),
-        (Some((0., 0.)), Interaction::Clicked),
+        (Some((0., 0.)), Interaction::None),
     ], false)]
     #[case::mouse_clicked_then_no_cursor(vec![
         (Some((10., 10.)), Interaction::Clicked),
@@ -370,7 +370,7 @@ mod tests {
         app.set_cursor_position(Some((0., 0.)));
 
         app.run_step();
-        assert_eq!(&Interaction::Clicked, app.get_interaction(entity));
+        assert_eq!(&Interaction::None, app.get_interaction(entity));
 
         app.set_mouse_released();
 
